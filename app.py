@@ -1,3 +1,4 @@
+import json
 from flask import Flask,render_template, request, Response
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -7,7 +8,7 @@ from helpers import carrega
 from selecionar_persona import get_persona
 from selecionar_documento import get_documento
 from ecomart_assistant import create_thread, create_assistant, get_assistant_json
-from tools_ecomart import list_tools
+from tools_ecomart import list_tools, list_functions
 
 load_dotenv()
 
@@ -20,14 +21,28 @@ app.secret_key = 'alura'
 assistant_json = get_assistant_json()
 thread_id = assistant_json['thread_id']
 assistant_id = assistant_json['assistant_id']
-files_ids = assistant_json['file_ids']
-vector_store_id = assistant_json['vector_store_id']
+
+# Global variables to control the status of the conversation
+STATUS_COMPLETED = 'completed'
+STATUS_REQUIRES_ACTION = 'requires_action'
 
 def bot(user_prompt):
     maximo_tentativas = 1
 
     for tentativa in range(maximo_tentativas):
         try:
+             # Check if there's an active run
+            active_runs = cliente.beta.threads.runs.list(thread_id=thread_id).data
+
+            if active_runs:
+                active_run = active_runs[0]
+                print(f"Waiting for active run to complete. Current status: {active_run.status}")
+                sleep(1)
+                active_run = cliente.beta.threads.runs.retrieve(
+                    thread_id=thread_id,
+                    run_id=active_run.id
+                )
+
             personalidade = get_persona(user_prompt)
 
             cliente.beta.threads.messages.create(
@@ -47,12 +62,33 @@ def bot(user_prompt):
                 assistant_id=assistant_id
             )
 
-            while run.status !=  'completed':
+            while run.status !=  STATUS_COMPLETED:
                 run = cliente.beta.threads.runs.retrieve(
                     thread_id=thread_id,
                     run_id=run.id
                 )
+                print(f"Status da conversa: {run.status}")
                 sleep(1)
+
+                if run.status == STATUS_REQUIRES_ACTION:
+                    print(f"Status da conversa: {run.status}")
+                    tools_activated = run.required_action.submit_tool_outputs.tool_calls
+                    tools_activated_responses = []
+
+                    for tool in tools_activated:
+                        tool_name = tool.function.name
+                        selected_function = list_functions[tool_name]
+                        function_args = json.loads(tool.function.arguments)
+                        print(f"Tool '{tool_name}' activated with arguments: {function_args}")
+                        function_response = selected_function(function_args)
+                        tools_activated_responses.append({'tool_call_id': tool.id,
+                                                        'output': function_response})
+                        
+                    run = cliente.beta.threads.runs.submit_tool_outputs(
+                        thread_id=thread_id,
+                        run_id=run.id,
+                        tool_outputs=tools_activated_responses
+                    )
 
             message_history = list(cliente.beta.threads.messages.list(thread_id=thread_id).data)
             response = message_history[0]
@@ -67,6 +103,7 @@ def bot(user_prompt):
 def chat():
     user_prompt = request.json['msg']
     response = bot(user_prompt)
+    print(response)
     response_text = response.content[0].text.value
     return response_text
 
