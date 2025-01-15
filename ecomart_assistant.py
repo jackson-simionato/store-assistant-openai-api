@@ -1,8 +1,9 @@
-from openai import OpenAI, APIError, APIConnectionError
+from openai import OpenAI
 from dotenv import load_dotenv
 import os, json
 from helpers import carrega
 from selecionar_persona import personas
+from tools_ecomart import list_tools
 
 load_dotenv()
 
@@ -84,7 +85,7 @@ def create_assistant(vector_store_id):
             Além disso, acesse os arquivos associados a você e a thread para responder as perguntas.
             """,
             model=modelo,
-            tools=[{"type": "file_search"}],  # Correct tools format
+            tools=list_tools,  # Correct tools format
             tool_resources={"file_search": {"vector_store_ids": [vector_store_id]}}
         )
         print(f"Assistant created successfully with ID: {assistant.id}")

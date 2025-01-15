@@ -7,6 +7,7 @@ from helpers import carrega
 from selecionar_persona import get_persona
 from selecionar_documento import get_documento
 from ecomart_assistant import create_thread, create_assistant, get_assistant_json
+from tools_ecomart import list_tools
 
 load_dotenv()
 
@@ -27,6 +28,14 @@ def bot(user_prompt):
 
     for tentativa in range(maximo_tentativas):
         try:
+            personalidade = get_persona(user_prompt)
+
+            cliente.beta.threads.messages.create(
+                thread_id=thread_id,
+                role="user",
+                content=f"Assuma de agora em diante a personalidade abaixo e ignore as personalidades anteriores:\n{personalidade}"
+            )
+
             cliente.beta.threads.messages.create(
                 thread_id=thread_id,
                 role="user",
@@ -43,6 +52,7 @@ def bot(user_prompt):
                     thread_id=thread_id,
                     run_id=run.id
                 )
+                sleep(1)
 
             message_history = list(cliente.beta.threads.messages.list(thread_id=thread_id).data)
             response = message_history[0]
