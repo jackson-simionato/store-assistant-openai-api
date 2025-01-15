@@ -6,7 +6,7 @@ from time import sleep
 from helpers import carrega
 from selecionar_persona import get_persona
 from selecionar_documento import get_documento
-from ecomart_assistant import create_thread, create_assistant
+from ecomart_assistant import create_thread, create_assistant, get_assistant_json
 
 load_dotenv()
 
@@ -16,8 +16,11 @@ modelo = "gpt-4o-mini"
 app = Flask(__name__)
 app.secret_key = 'alura'
 
-assistant = create_assistant()
-thread = create_thread()
+assistant_json = get_assistant_json()
+thread_id = assistant_json['thread_id']
+assistant_id = assistant_json['assistant_id']
+files_ids = assistant_json['file_ids']
+vector_store_id = assistant_json['vector_store_id']
 
 def bot(user_prompt):
     maximo_tentativas = 1
@@ -25,23 +28,23 @@ def bot(user_prompt):
     for tentativa in range(maximo_tentativas):
         try:
             cliente.beta.threads.messages.create(
-                thread_id=thread.id,
+                thread_id=thread_id,
                 role="user",
                 content=user_prompt
             )
 
             run = cliente.beta.threads.runs.create(
-                thread_id=thread.id,
-                assistant_id=assistant.id
+                thread_id=thread_id,
+                assistant_id=assistant_id
             )
 
             while run.status !=  'completed':
                 run = cliente.beta.threads.runs.retrieve(
-                    thread_id=thread.id,
+                    thread_id=thread_id,
                     run_id=run.id
                 )
 
-            message_history = list(cliente.beta.threads.messages.list(thread_id=thread.id).data)
+            message_history = list(cliente.beta.threads.messages.list(thread_id=thread_id).data)
             response = message_history[0]
             return response
         except Exception as erro:
