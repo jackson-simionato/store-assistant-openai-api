@@ -24,33 +24,26 @@ def bot(user_prompt):
 
     for tentativa in range(maximo_tentativas):
         try:
-            system_prompt = f"""
-            Você é um chatbot de atendimento a clientes de um e-commerce. 
-            Você não deve responder perguntas que não sejam dados do e-commerce informado!
-            Seja conciso, dê respostas claras e objetivas.
-            Utilize o contexto e a personalidade abaixo para gerar as respostas.
-            # Contexto: {contexto}
+            cliente.beta.threads.messages.create(
+                thread_id=thread.id,
+                role="user",
+                content=user_prompt
+            )
 
-            # Personalidade: {persona}
-            """
-            response = cliente.chat.completions.create(
-                messages=[
-                        {
-                                "role": "system",
-                                "content": system_prompt
-                        },
-                        {
-                                "role": "user",
-                                "content": user_prompt
-                        }
-                ],
-                temperature=1,
-                max_tokens=256,
-                top_p=1,
-                frequency_penalty=0,
-                presence_penalty=0,
-                model = modelo)
-            return response.choices[0].message.content
+            run = cliente.beta.threads.runs.create(
+                thread_id=thread.id,
+                assistant_id=assistant.id
+            )
+
+            while run.status !=  'completed':
+                run = cliente.beta.threads.runs.retrieve(
+                    thread_id=thread.id,
+                    run_id=run.id
+                )
+
+            message_history = list(cliente.beta.threads.messages.list(thread_id=thread.id).data)
+            response = message_history[0]
+            return response
         except Exception as erro:
             if tentativa == maximo_tentativas - 1:
                     return "Erro no GPT: %s" % erro
@@ -61,7 +54,8 @@ def bot(user_prompt):
 def chat():
     user_prompt = request.json['msg']
     response = bot(user_prompt)
-    return response
+    response_text = response.content[0].text.value
+    return response_text
 
 @app.route("/")
 def home():
