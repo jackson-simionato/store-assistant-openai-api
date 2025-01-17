@@ -1,3 +1,6 @@
+import base64
+
+
 def carrega(fname):
     try:
         with open(fname, 'r') as f:
@@ -13,4 +16,8 @@ def salva(fname):
     except IOError:
         print(f"Error: File {fname} could not be written.")
         return None
+    
+def encodar_imagem(path_imagem):
+    with open(path_imagem, 'rb') as f:
+        return base64.b64encode(f.read()).decode('utf-8')
     

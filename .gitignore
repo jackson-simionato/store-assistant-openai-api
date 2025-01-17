@@ -139,3 +139,4 @@ cython_debug/
 *Identifier
 venv/
 curso_2_openai/
+assistants.json
