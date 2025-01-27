@@ -6,14 +6,14 @@
 
 **Windows:**
 ```bash
-python -m venv curso_2_openai
-curso_2_openai\Scripts\activate
+python -m venv venv
+venv\Scripts\activate
 ```
 
 **Mac/Linux:**
 ```bash
-python3 -m venv curso_2_openai
-source curso_2_openai/bin/activate
+python3 -m venv vev
+source venv/bin/activate
 ```
 
 ### Instalação das Bibliotecas
@@ -21,6 +21,9 @@ source curso_2_openai/bin/activate
 ```bash
 pip install -r requirements.txt
 ```
+
+### Variáveis de ambiente
+OPENAI_API_KEY -> Token de autenticação da OpenAI API.
 
 ## 📚 Referências de Leitura
 
