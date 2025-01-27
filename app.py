@@ -9,11 +9,14 @@ from selecionar_persona import get_persona
 from selecionar_documento import get_documento
 from ecomart_assistant import create_thread, create_assistant, get_assistant_json
 from tools_ecomart import list_tools, list_functions
+import uuid
+
+from vision_ecomart import analyze_image
 
 load_dotenv()
 
 cliente = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-modelo = "gpt-4o-mini"
+modelo = "gpt-4o"
 
 app = Flask(__name__)
 app.secret_key = 'alura'
@@ -25,8 +28,11 @@ assistant_id = assistant_json['assistant_id']
 # Global variables to control the status of the conversation
 STATUS_COMPLETED = 'completed'
 STATUS_REQUIRES_ACTION = 'requires_action'
+UPLOAD_FOLDER = 'dados/images'
+path_image_sent = None
 
 def bot(user_prompt):
+    global path_image_sent
     maximo_tentativas = 1
 
     for tentativa in range(maximo_tentativas):
@@ -51,10 +57,19 @@ def bot(user_prompt):
                 content=f"Assuma de agora em diante a personalidade abaixo e ignore as personalidades anteriores:\n{personalidade}"
             )
 
+            vision_response = ""
+            if path_image_sent != None:
+                vision_response = analyze_image(path_image_sent)
+                vision_response = vision_response + ". Na resposta final ao usuário, interprete a análise da imagem e forneça uma resposta adequada de acordo com o contexto do cliente"
+                os.remove(path_image_sent)
+                path_image_sent = None
+            
+            print(vision_response)
+
             cliente.beta.threads.messages.create(
                 thread_id=thread_id,
                 role="user",
-                content=user_prompt
+                content=user_prompt + '\n' + vision_response
             )
 
             run = cliente.beta.threads.runs.create(
@@ -101,9 +116,15 @@ def bot(user_prompt):
 
 @app.route('/upload_imagem', methods=['POST'])
 def upload_imagem():
+    global path_image_sent
     if 'imagem' in request.files:
-        imagem = request.files['imagem']
-        print(imagem)
+        image = request.files['imagem']
+
+        id_image = str(uuid.uuid4()) + os.path.splitext(image.filename)[1]
+        path_image_file = os.path.join(UPLOAD_FOLDER, id_image)
+        image.save(path_image_file)
+        path_image_sent = path_image_file
+
         return 'Imagem salva com sucesso', 200 
     return 'Nenhum arquivo enviado!', 400
 
@@ -111,7 +132,6 @@ def upload_imagem():
 def chat():
     user_prompt = request.json['msg']
     response = bot(user_prompt)
-    print(response)
     response_text = response.content[0].text.value
     return response_text
 

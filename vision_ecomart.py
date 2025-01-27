@@ -42,5 +42,3 @@ def analyze_image(path_image):
     )
 
     return response.choices[0].message.content
-
-print(analyze_image('dados/caneca_quebrada.jpg'))
